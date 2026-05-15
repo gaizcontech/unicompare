@@ -1,0 +1,2 @@
+# unicompare
+Universal compare tool
