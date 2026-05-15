@@ -1,0 +1,399 @@
+'use client';
+
+import { useMemo, useRef, useState } from 'react';
+
+// Browser-only web app version
+// No installation or backend required
+// Deploy directly to Vercel, Netlify, or GitHub Pages
+
+type ComparisonRow = {
+  line: number;
+  left: string;
+  right: string;
+  isDifferent: boolean;
+};
+
+export default function UniversalCompareTool() {
+  const [leftText, setLeftText] = useState('');
+  const [rightText, setRightText] = useState('');
+  const [hasCompared, setHasCompared] = useState(false);
+  const leftFileRef = useRef<HTMLInputElement | null>(null);
+  const rightFileRef = useRef<HTMLInputElement | null>(null);
+
+  const features = [
+    {
+      title: 'Text Compare',
+      desc: 'Compare documents, code, and notes with highlighted differences.'
+    },
+    {
+      title: 'Image Compare',
+      desc: 'Detect visual differences between screenshots and designs.'
+    },
+    {
+      title: 'Website Compare',
+      desc: 'Analyze changes between two URLs and compare content.'
+    },
+    {
+      title: 'AI Insights',
+      desc: 'Generate summaries and intelligent difference reports.'
+    }
+  ];
+
+  const comparison = useMemo(() => {
+    const leftLines = leftText.split('\n');
+    const rightLines = rightText.split('\n');
+
+    const maxLines = Math.max(leftLines.length, rightLines.length);
+
+    let changedLines = 0;
+
+    const results: ComparisonRow[] = [];
+
+    for (let i = 0; i < maxLines; i++) {
+      const left = leftLines[i] || '';
+      const right = rightLines[i] || '';
+
+      const isDifferent = left !== right;
+
+      if (isDifferent) {
+        changedLines += 1;
+      }
+
+      results.push({
+        line: i + 1,
+        left,
+        right,
+        isDifferent
+      });
+    }
+
+    const totalLines = maxLines || 1;
+
+    const similarity = Math.max(
+      0,
+      Math.round(((totalLines - changedLines) / totalLines) * 100)
+    );
+
+    return {
+      results,
+      similarity,
+      changedLines,
+      totalLines
+    };
+  }, [leftText, rightText]);
+
+  const handleCompare = () => {
+    setHasCompared(true);
+  };
+
+  const handleClear = () => {
+    setLeftText('');
+    setRightText('');
+    setHasCompared(false);
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    side: 'left' | 'right'
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const text = await file.text();
+
+    if (side === 'left') {
+      setLeftText(text);
+    } else {
+      setRightText(text);
+    }
+  };
+
+  const exportReport = () => {
+    const report = {
+      similarity: comparison.similarity,
+      changedLines: comparison.changedLines,
+      totalLines: comparison.totalLines,
+      generatedAt: new Date().toISOString(),
+      differences: comparison.results.filter((row) => row.isDifferent)
+    };
+
+    const blob = new Blob([
+      JSON.stringify(report, null, 2)
+    ], {
+      type: 'application/json'
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'comparison-report.json';
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const copyResults = async () => {
+    const diffText = comparison.results
+      .map((row) => {
+        return `Line ${row.line}
+Original: ${row.left}
+Updated: ${row.right}
+`;
+      })
+      .join('
+');
+
+    await navigator.clipboard.writeText(diffText);
+  };
+
+  const loadSampleData = () => {
+    setLeftText(`Hello world\nThis is version 1\nUniversal Compare Tool\nOld line`);
+
+    setRightText(`Hello world\nThis is version 2\nUniversal Compare Tool\nNew line added`);
+
+    setHasCompared(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-10">
+          <h1 className="text-5xl font-bold mb-4">
+            Universal Compare Tool
+          </h1>
+
+          <p className="text-zinc-400 text-lg max-w-3xl">
+            Compare text, files, documents, images, and websites in one AI-powered workspace.
+          </p>
+        </header>
+
+        <div className="grid md:grid-cols-4 gap-6 mb-10">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-xl"
+            >
+              <h2 className="text-xl font-semibold mb-3">
+                {feature.title}
+              </h2>
+
+              <p className="text-zinc-400">
+                {feature.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
+            <h2 className="text-2xl font-semibold mb-4">
+              Left Source
+            </h2>
+
+            <textarea
+              value={leftText}
+              onChange={(e) => setLeftText(e.target.value)}
+              placeholder="Paste original text, code, or content here..."
+              className="w-full h-80 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 outline-none resize-none"
+            />
+          </div>
+
+          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
+            <h2 className="text-2xl font-semibold mb-4">
+              Right Source
+            </h2>
+
+            <textarea
+              value={rightText}
+              onChange={(e) => setRightText(e.target.value)}
+              placeholder="Paste updated comparison content here..."
+              className="w-full h-80 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 outline-none resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-4 mb-8 flex-wrap">
+          <input
+            ref={leftFileRef}
+            type="file"
+            accept=".txt,.md,.json,.csv"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, 'left')}
+          />
+
+          <input
+            ref={rightFileRef}
+            type="file"
+            accept=".txt,.md,.json,.csv"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, 'right')}
+          />
+          <button
+            onClick={handleCompare}
+            className="bg-white text-black px-6 py-3 rounded-2xl font-semibold"
+          >
+            Compare Now
+          </button>
+
+          <button
+            onClick={handleClear}
+            className="bg-zinc-800 px-6 py-3 rounded-2xl"
+          >
+            Clear
+          </button>
+
+          <button
+            onClick={() => leftFileRef.current?.click()}
+            className="bg-emerald-600 px-6 py-3 rounded-2xl"
+          >
+            Upload Left File
+          </button>
+
+          <button
+            onClick={() => rightFileRef.current?.click()}
+            className="bg-purple-600 px-6 py-3 rounded-2xl"
+          >
+            Upload Right File
+          </button>
+
+          <button
+            onClick={loadSampleData}
+            className="bg-blue-600 px-6 py-3 rounded-2xl"
+          >
+            Load Sample Test
+          </button>
+        </div>
+
+        {hasCompared && (
+          <>
+            <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 mb-8">
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="bg-zinc-950 rounded-2xl p-5 border border-zinc-800">
+                  <h3 className="text-xl font-semibold mb-3">
+                    Similarity Score
+                  </h3>
+
+                  <div className="text-6xl font-bold">
+                    {comparison.similarity}%
+                  </div>
+
+                  <p className="text-zinc-400 mt-3">
+                    Similarity based on line-by-line text comparison.
+                  </p>
+                </div>
+
+                <div className="bg-zinc-950 rounded-2xl p-5 border border-zinc-800">
+                  <h3 className="text-xl font-semibold mb-3">
+                    Detected Changes
+                  </h3>
+
+                  <ul className="space-y-3 text-zinc-400">
+                    <li>
+                      • {comparison.changedLines} changed lines
+                    </li>
+
+                    <li>
+                      • {comparison.totalLines} total lines analyzed
+                    </li>
+
+                    <li>
+                      • {comparison.totalLines - comparison.changedLines} matching lines
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-zinc-950 rounded-2xl p-5 border border-zinc-800">
+                  <h3 className="text-xl font-semibold mb-3">
+                    Comparison Summary
+                  </h3>
+
+                  <p className="text-zinc-400 leading-relaxed">
+                    The engine compared both texts line-by-line and highlighted all modified sections.
+                    Differences are shown below with visual indicators.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 mb-8 overflow-hidden">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                <h2 className="text-3xl font-semibold">
+                  Live Diff Viewer
+                </h2>
+
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={copyResults}
+                    className="bg-zinc-800 px-4 py-2 rounded-xl text-sm"
+                  >
+                    Copy Results
+                  </button>
+
+                  <button
+                    onClick={exportReport}
+                    className="bg-white text-black px-4 py-2 rounded-xl text-sm font-medium"
+                  >
+                    Export JSON Report
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-auto rounded-2xl border border-zinc-800">
+                <table className="w-full text-sm">
+                  <thead className="bg-zinc-950 sticky top-0">
+                    <tr>
+                      <th className="text-left p-4 border-b border-zinc-800 w-20">
+                        Line
+                      </th>
+
+                      <th className="text-left p-4 border-b border-zinc-800">
+                        Original
+                      </th>
+
+                      <th className="text-left p-4 border-b border-zinc-800">
+                        Updated
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {comparison.results.map((row) => (
+                      <tr
+                        key={row.line}
+                        className={
+                          row.isDifferent
+                            ? 'bg-red-950/30'
+                            : 'bg-emerald-950/20'
+                        }
+                      >
+                        <td className="p-4 border-b border-zinc-800 text-zinc-500 align-top">
+                          {row.line}
+                        </td>
+
+                        <td className="p-4 border-b border-zinc-800 whitespace-pre-wrap align-top">
+                          {row.left || '-'}
+                        </td>
+
+                        <td className="p-4 border-b border-zinc-800 whitespace-pre-wrap align-top">
+                          {row.right || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        <footer className="mt-12 text-center text-zinc-500 text-sm">
+          Universal Compare Tool Web App — Runs Fully In Browser Without Installation
+        </footer>
+      </div>
+    </div>
+  );
+}
