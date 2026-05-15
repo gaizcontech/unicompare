@@ -2,10 +2,6 @@
 
 import { useMemo, useRef, useState } from 'react';
 
-// Browser-only web app version
-// No installation or backend required
-// Deploy directly to Vercel, Netlify, or GitHub Pages
-
 type ComparisonRow = {
   line: number;
   left: string;
